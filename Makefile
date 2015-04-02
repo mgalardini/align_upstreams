@@ -1,15 +1,20 @@
 SRCDIR = $(CURDIR)/src
+DATADIR = $(CURDIR)/data
 GENOMESDIR = $(CURDIR)/genomes
 OMADIR = $(GENOMESDIR)/oma
 OMAPARAMETERS = $(OMADIR)/parameters.drw
 OMACPU = 6
-
-# Sequences and orthology
-
 K12 = $(GENOMESDIR)/k12.gbk
 OTHER = $(GENOMESDIR)/other.gbk
 
 # Anything below this point should not be changed
+
+# Directories
+
+$(DATADIR):
+	mkdir -p $(DATADIR)
+
+# Sequences and orthology
 
 K12FA = $(GENOMESDIR)/k12.fa
 $(K12FA): $(K12)
@@ -37,6 +42,12 @@ $(ORTHOXMLLIB):
 K12OTHERPANGENOME = $(OMADIR)/k12_other.tsv
 $(K12OTHERPANGENOME): $(K12OTHERHGROUPS) $(ORTHOXMLLIB) $(OMADIR)
 	$(SRCDIR)/omah2tsv $(K12OTHERHGROUPS) $(K12OTHERPANGENOME)
+
+# RegulonDB data
+
+TFBS = $(DATADIR)/BindingSiteSet.txt
+$(TFBS):
+	wget -O $(TFBS) http://regulondb.ccg.unam.mx/menu/download/datasets/files/BindingSiteSet.txt
 
 # Makefile targets
 
