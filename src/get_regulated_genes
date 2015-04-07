@@ -39,6 +39,10 @@ def get_options():
     parser.add_argument('sites', action='store',
                         help='RegulonDB binding sites')
 
+    parser.add_argument('--details', action='store_true',
+                        default=False,
+                        help='Output positioning details')
+    
     parser.add_argument('--version', action='version',
                          version='%(prog)s '+__version__)
 
@@ -54,24 +58,46 @@ if __name__ == "__main__":
     # This is ill-designed but necessary to extract
     # the gene information from RegulonDB
     locus_gene = {}
+    locus_position = {}
     for s in SeqIO.parse(options.ingbk, 'genbank'):
         for f in s.features:
+            if f.strand > 1:
+                strand = '+'
+            else:
+                strand = '-'
             if 'gene' in f.qualifiers and 'locus_tag' in f.qualifiers:
                 locus_gene[
                   f.qualifiers['gene'][0].lower()
                   ] = f.qualifiers['locus_tag'][0]
+                locus_position[
+                  f.qualifiers['locus_tag'][0]
+                  ] = (str(f.location.start), str(f.location.end), strand)
             # Also consider gene synonyms
             if 'gene' in f.qualifiers and 'gene_synonym' in f.qualifiers:
                 for syn in f.qualifiers['gene_synonym'][0].split(';'):
                     locus_gene[syn.strip().lower()] = f.qualifiers['locus_tag'][0]
+                    locus_position[
+                        f.qualifiers['locus_tag'][0]
+                        ] = (str(f.location.start), str(f.location.end), strand)
+
+    if options.details:
+        print('\t'.join( ('#locus',
+                          'tfbs start', 'tfbs end', 'tfbs strand',
+                          'gene start', 'gene end', 'gene strand') ))
 
     # Read the almighty RegulonDB table
     locus = set()
     for l in open(options.sites):
         if l.strip().startswith('#'):
             continue
-        
-        gene_name = l.split('\t')[9]
+       
+        s = l.rstrip().split('\t')
+
+        # TFBS without a position have to be skipped
+        if s[3] == '0' and s[4] == '0':
+            continue
+
+        gene_name = s[9]
         # Gene name contains a "p" and possibly a number
         # at the end
         # Gonna remove it
@@ -93,7 +119,16 @@ if __name__ == "__main__":
         gene_name = gene_name[:4]
         
         if gene_name in locus_gene:
-            locus.add(locus_gene[gene_name])
+            lc = locus_gene[gene_name]
+            locus.add(lc)
+        
+            # Give some more details, if needed
+            if options.details:
+                print('\t'.join( (lc, s[3], s[4], s[8],
+                        locus_position[lc][0],
+                        locus_position[lc][1],
+                        locus_position[lc][2]) ))
 
-    for g in sorted(locus):
-        print(g)
+    if not options.details:
+        for g in sorted(locus):
+            print(g)
