@@ -14,8 +14,8 @@ Usage
 -----
 
 * Orthology:
-    * Place a K-12 genbank file in the "genomes" directory
-    * Place the comparison genbank file in the same directory
+    * Place a K-12 genbank file in the "genomes" directory (genomes/k12.gbk corresponds to RefSeq NC_000913.2)
+    * Place the comparison genbank file in the same directory (called genomes/other.gbk)
     * Run `make orthology`
 
 Todo
