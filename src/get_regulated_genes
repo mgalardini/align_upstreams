@@ -61,7 +61,7 @@ if __name__ == "__main__":
     locus_position = {}
     for s in SeqIO.parse(options.ingbk, 'genbank'):
         for f in s.features:
-            if f.strand > 1:
+            if f.strand > 0:
                 strand = '+'
             else:
                 strand = '-'
