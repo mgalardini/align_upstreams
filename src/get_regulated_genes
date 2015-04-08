@@ -71,19 +71,20 @@ if __name__ == "__main__":
                   ] = f.qualifiers['locus_tag'][0]
                 locus_position[
                   f.qualifiers['locus_tag'][0]
-                  ] = (str(f.location.start), str(f.location.end), strand)
+                  ] = (str(f.location.start), str(f.location.end), strand, s.id)
             # Also consider gene synonyms
             if 'gene' in f.qualifiers and 'gene_synonym' in f.qualifiers:
                 for syn in f.qualifiers['gene_synonym'][0].split(';'):
                     locus_gene[syn.strip().lower()] = f.qualifiers['locus_tag'][0]
                     locus_position[
                         f.qualifiers['locus_tag'][0]
-                        ] = (str(f.location.start), str(f.location.end), strand)
+                        ] = (str(f.location.start), str(f.location.end), strand, s.id)
 
     if options.details:
-        print('\t'.join( ('#locus',
+        print('\t'.join( ('#regulator', 'locus',
                           'tfbs start', 'tfbs end', 'tfbs strand',
-                          'gene start', 'gene end', 'gene strand') ))
+                          'gene start', 'gene end', 'gene strand',
+                          'sequence id') ))
 
     # Read the almighty RegulonDB table
     locus = set()
@@ -124,10 +125,12 @@ if __name__ == "__main__":
         
             # Give some more details, if needed
             if options.details:
-                print('\t'.join( (lc, s[3], s[4], s[8],
+                print('\t'.join( (s[1],
+                        lc, s[3], s[4], s[8],
                         locus_position[lc][0],
                         locus_position[lc][1],
-                        locus_position[lc][2]) ))
+                        locus_position[lc][2],
+                        locus_position[lc][3]) ))
 
     if not options.details:
         for g in sorted(locus):
