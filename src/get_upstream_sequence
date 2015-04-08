@@ -190,7 +190,7 @@ if __name__ == "__main__":
         else:
             gene2_strand = '-'
 
-        print('>%s_%s_%d_%d_%s %d_%d_%s\n%s'%(
+        print('>%s_%s_%d_%d_%s_%d_%d_%s\n%s'%(
             options.org1,
             locus,
             gene_start,
