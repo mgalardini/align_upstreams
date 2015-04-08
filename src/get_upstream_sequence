@@ -1,0 +1,209 @@
+#!/usr/bin/env python
+
+# Copyright (C) <2015> EMBL-European Bioinformatics Institute
+
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# Neither the institution name nor the name align_upstreams can
+# be used to endorse or promote products derived from this
+# software without prior written permission. For written
+# permission, please contact <marco@ebi.ac.uk>.
+
+# Products derived from this software may not be called
+# align_upstreams nor may align_upstreams appear in their names
+# without prior written permission of the developers.
+# You should have received a copy of the GNU General Public
+# License along with this program. If not, see
+# <http://www.gnu.org/licenses/>.
+
+__author__ = "Marco Galardini"
+__version__ = "0.0.1"
+
+def get_options():
+    import argparse
+
+    # create the top-level parser
+    description = "Get upstream sequences for genes/TFBS pairs, in two genomes"
+    parser = argparse.ArgumentParser(description = description,
+                                     prog = 'get_upstream_sequence')
+    parser.add_argument('gbk1', action='store',
+                        help='Input GenBank file (k12)')
+    parser.add_argument('gbk2', action='store',
+                        help='Input GenBank file (other)')
+    parser.add_argument('sites', action='store',
+                        help='RegulonDB binding sites (output of get_regulated_genes --details)')
+    parser.add_argument('orthologs', action='store',
+                        help='Orthologs between the two genomes')
+    
+    parser.add_argument('--org1', action='store',
+                        default='k12',
+                        help='Organism 1 name [Default: k12]')
+    parser.add_argument('--org2', action='store',
+                        default='other',
+                        help='Organism 2 name [Default: other]')
+
+    parser.add_argument('--upstream', action='store',
+                        type=int,
+                        default=500,
+                        help='Ideal upstream size [Default: 500]')
+    parser.add_argument('--downstream', action='store',
+                        type=int,
+                        default=100,
+                        help='Ideal downstream size [Default: 100]')
+
+    parser.add_argument('--version', action='version',
+                         version='%(prog)s '+__version__)
+
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    from Bio import SeqIO
+    import sys
+    options = get_options()
+
+    # Read the 1:1 orthologs
+    orth = {}
+    for l in open(options.orthologs):
+        if l.strip().startswith('#'):
+            continue
+        og, pid, org = l.rstrip().split('\t')
+        orth[og] = orth.get(og, set())
+        orth[og].add( (pid, org) )
+    # Build a org1 -> org2 mapping
+    orthologs = {}
+    for k in orth:
+        if len(orth[k]) != 2:
+            continue
+        orthologs[ [x[0]
+            for x in orth[k]
+            if x[1] == options.org1][0] ] = [x[0]
+                    for x in orth[k]
+                    if x[1] == options.org2][0]
+
+    # Keep a dictionary of the sequences of each genbank file
+    ds1 = {}
+    ds2 = {}
+    # For organism 2 we will also need the position of each locus
+    ls2 = {}
+    l2_positions = {}
+
+    for s in SeqIO.parse(options.gbk1, 'genbank'):
+        ds1[s.id] = s
+    for s in SeqIO.parse(options.gbk2, 'genbank'):
+        ds2[s.id] = s
+        for f in [x for x in s.features if 'locus_tag' in x.qualifiers]:
+            ls2[ f.qualifiers['locus_tag'][0] ] = s.id
+            l2_positions[ f.qualifiers['locus_tag'][0] ] = (int(f.location.start),
+                                                            int(f.location.end),
+                                                            f.strand)
+
+    # Read the TFBS table
+    # which refers to the genome 1
+    for l in open(options.sites):
+        if l.startswith('#'):
+            continue
+        (regulator, locus, tfbs_start, tfbs_end, tfbs_strand,
+         gene_start, gene_end, gene_strand, sequence_id) = l.rstrip().split('\t')
+       
+        tfbs_start = int(tfbs_start)
+        tfbs_end = int(tfbs_end)
+        gene_start = int(gene_start)
+        gene_end = int(gene_end)
+
+        # Skip if this gene has no ortholog
+        if locus not in orthologs:
+            continue
+        locus2 = orthologs[locus]
+        gene2_start, gene2_end, gene2_strand = l2_positions[locus2]
+
+        # Get the proper sequences for both organisms
+        s1 = ds1[sequence_id]
+        s2 = ds2[ ls2[locus2] ]
+
+        # Get the sequence for organism1
+        # Ideally the sequence shouldn't be longer than 600bp
+        # (including some downstream from the gene start)
+        # but exceptions will be considered and will be considered when getting
+        # the sequence for organism2
+        dist = gene_start - tfbs_start
+        if gene_strand == '-':
+            dist = -dist
+        # Exception #1: TFBS is very far from gene start
+        if dist > options.downstream + options.upstream:
+            # Add "downstream" bases before the TFBS
+            # and take the same distance from organism2
+            if gene_strand == '+':
+                seq1 = str(s1[gene_start-dist-options.upstream:
+                              gene_start+options.downstream].seq)
+            else:
+                seq1 = str(s1[gene_end-options.downstream:
+                      gene_end+dist+options.upstream].reverse_complement().seq)
+            if gene2_strand > 0:
+                seq2 = str(s2[gene2_start-dist-options.upstream:
+                              gene2_start+options.downstream].seq)
+            else:
+                seq2 = str(s2[gene2_end-options.downstream:
+                    gene2_end+dist+options.upstream].reverse_complement().seq)
+        # Exception #2: TFBS is on the other side of the gene
+        elif dist < 0 and -dist > options.downstream:
+            # Take "downstream" bases upstream of the gene
+            # add "downstream" bases after the TFBS
+            # then take the same distance for organism2
+            dist = -dist
+            if gene_strand == '+':
+                seq1 = str(s1[gene_start-options.downstream:
+                              gene_start+dist+options.downstream].seq)
+            else:
+                seq1 = str(s1[gene_end-dist-options.downstream:
+                    gene_end+options.downstream].reverse_complement().seq)
+            if gene2_strand > 0:
+                seq2 = str(s2[gene2_start-options.downstream:
+                              gene2_start+dist+options.downstream].seq)
+            else:
+                seq2 = str(s2[gene2_end-dist-options.downstream:
+                    gene2_end+options.downstream].reverse_complement().seq)
+        else:
+            # Just take upstream + downstream sequences from organism2
+            if gene_strand == '+':
+                seq1 = str(s1[gene_start-options.upstream:
+                              gene_start+options.downstream].seq)
+            else:
+                seq1 = str(s1[gene_end-options.downstream:
+                    gene_end+options.upstream].reverse_complement().seq)
+            if gene2_strand > 0:
+                seq2 = str(s2[gene2_start-options.upstream:
+                              gene2_start+options.downstream].seq)
+            else:
+                seq2 = str(s2[gene2_end-options.downstream:
+                    gene2_end+options.upstream].reverse_complement().seq)
+
+        if gene2_strand > 0:
+            gene2_strand = '+'
+        else:
+            gene2_strand = '-'
+
+        print('>%s_%s_%d_%d_%s %d_%d_%s\n%s'%(
+            options.org1,
+            locus,
+            gene_start,
+            gene_end,
+            gene_strand,
+            tfbs_start,
+            tfbs_end,
+            tfbs_strand,
+            seq1))
+        print('>%s_%s_%d_%d_%s\n%s'%(
+            options.org2,
+            locus2,
+            gene2_start,
+            gene2_end,
+            gene2_strand,
+            seq2))
