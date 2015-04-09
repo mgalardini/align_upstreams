@@ -49,9 +49,23 @@ TFBS = $(DATADIR)/BindingSiteSet.txt
 $(TFBS):
 	wget -O $(TFBS) http://regulondb.ccg.unam.mx/menu/download/datasets/files/BindingSiteSet.txt
 
+# TFBSs table
+
+TFBSTABLE = $(DATADIR)/tfbs.txt
+$(TFBSTABLE): $(TFBS)
+	$(SRCDIR)/get_regulated_genes $(K12) $(TFBS) --details > $(TFBSTABLE)
+	# Here Juan's script to fix the TFBSs positions
+
+# Upstream sequences ready to be aligned
+
+UPSTREAMS = $(DATADIR)/upstreams.fasta
+$(UPSTREAMS): $(TFBSTABLE) $(K12OTHERPANGENOME)
+	$(SRCDIR)/get_upstream_sequence $(K12) $(OTHER) $(TFBSTABLE) $(K12OTHERPANGENOME) > $(UPSTREAMS)
+
 # Makefile targets
 
 orthologs: $(K12OTHERPANGENOME)
-all: orthologs
+upstreams: $(UPSTREAMS)
+all: orthologs upstreams
 
-.PHONY: all orthologs
+.PHONY: all orthologs upstreams
