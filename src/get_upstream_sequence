@@ -190,7 +190,7 @@ if __name__ == "__main__":
         else:
             gene2_strand = '-'
 
-        print('>%s_%s_%d_%d_%s_%d_%d_%s\n%s'%(
+        print('>%s__%s__%d__%d__%s__%d__%d__%s\n%s'%(
             options.org1,
             locus,
             gene_start,
@@ -200,7 +200,7 @@ if __name__ == "__main__":
             tfbs_end,
             tfbs_strand,
             seq1))
-        print('>%s_%s_%d_%d_%s\n%s'%(
+        print('>%s__%s__%d__%d__%s\n%s'%(
             options.org2,
             locus2,
             gene2_start,
