@@ -147,8 +147,8 @@ if __name__ == "__main__":
             instances = retrieve_instances(os.path.join(options.pssm, '%s.pssm.fasta'%tf))
         if isinstance(instances, list) and len(instances) > 0:
             m, seq_type = get_motif(instances)
-            start = int(fields[2]) - 5
-            end = int(fields[3]) + 5
+            start = int(fields[2]) - 10
+            end = int(fields[3]) + 10
             s = d[fields[8]][start:end].seq
             sc = scorePSSM(s, m, seq_type)
             sc_rev = scorePSSM(s.reverse_complement(), m, seq_type)
