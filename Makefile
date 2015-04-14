@@ -13,6 +13,9 @@ OTHER = $(GENOMESDIR)/other.gbk
 
 $(DATADIR):
 	mkdir -p $(DATADIR)
+PSSMDIR = $(DATADIR)/pssm
+$(PSSMDIR):
+	mkdir -p $(PSSMDIR)
 
 # Sequences and orthology
 
@@ -48,13 +51,17 @@ $(K12OTHERPANGENOME): $(K12OTHERHGROUPS) $(ORTHOXMLLIB) $(OMADIR)
 TFBS = $(DATADIR)/BindingSiteSet.txt
 $(TFBS):
 	wget -O $(TFBS) http://regulondb.ccg.unam.mx/menu/download/datasets/files/BindingSiteSet.txt
-
+PSSM = $(DATADIR)/PSSMSet.txt
+$(PSSM): $(PSSMDIR)
+	wget -O $(PSSM) http://regulondb.ccg.unam.mx/menu/download/datasets/files/PSSMSet.txt
+	$(SRCDIR)/retrieve_pssm $(PSSM) $(PSSMDIR)
+	
 # TFBSs table
 
 TFBSTABLE = $(DATADIR)/tfbs.txt
-$(TFBSTABLE): $(TFBS)
-	$(SRCDIR)/get_regulated_genes $(K12) $(TFBS) --details > $(TFBSTABLE)
-	# Here Juan's script to fix the TFBSs positions
+$(TFBSTABLE): $(TFBS) $(PSSM)
+	$(SRCDIR)/get_regulated_genes $(K12) $(TFBS) --details > $(TFBSTABLE).tmp
+	$(SRCDIR)/correct_tfbstable $(TFBSTABLE).tmp $(PSSMDIR) $(K12) > $(TFBSTABLE)
 
 # Upstream sequences ready to be aligned
 
