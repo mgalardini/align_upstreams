@@ -96,6 +96,7 @@ if __name__ == "__main__":
 
         # 1- Align with MAFFT
         # then remove the 5' and 3' gaps
+        # aaaaaaaand correct the fasta header!
         cmd = 'mafft input.fa > mafft.fa'
         if not run_cmd(cmd, verbose=options.verbose):
             sys.stderr.write('Could not align %s and %s (MAFFT)\n'%(s1.id,
@@ -108,18 +109,22 @@ if __name__ == "__main__":
                         if '-' in align[:, i]]
         # 5'?
         trim = []
+        trim5 = []
         if len(gaps_indexes) != 0 and gaps_indexes[0] == 0:
             i = 0
             while True:
                 trim.append(gaps_indexes[i])
+                trim5.append(gaps_indexes[i])
                 if gaps_indexes[i+1] != gaps_indexes[i] + 1:
                     break
                 i += 1
         # 3'?
+        trim3 = []
         if len(gaps_indexes) != 0 and gaps_indexes[-1] == len(align[0]) - 1:
             i = len(s[0]) - 1
             while True:
                 trim.append(gaps_indexes[i])
+                trim3.append(gaps_indexes[i])
                 if gaps_indexes[i-1] != gaps_indexes[i] - 1:
                     break
                 i -= 1
@@ -130,7 +135,16 @@ if __name__ == "__main__":
         u2 = ''.join([align[1, i] for i in range(len(align[0]))
                      if i not in trim and align[1, i] != '-'])
         f = open('input.fa', 'w')
-        f.write('>%s\n%s\n>%s\n%s\n'%(s1.id, u1,
+        if len(trim5) == 0 and len(trim3) == 0:
+            s1_id = s1.id
+        else:
+            # TODO: check that this is the proper way
+            s1_start = int(s1.id.split('__')[3]) + len(trim5) - 1
+            s1_end = int(s1.id.split('__')[4]) - len(trim3) + 1
+            s1_id = '__'.join(s.id.split('__')[:3] +
+                               [str(s1_start), str(s1_end)] +
+                               s.id.split('__')[5:])
+        f.write('>%s\n%s\n>%s\n%s\n'%(s1_id, u1,
                                       s2.id, u2))
         f.close()
 
