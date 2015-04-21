@@ -69,10 +69,16 @@ UPSTREAMS = $(DATADIR)/upstreams.fasta
 $(UPSTREAMS): $(TFBSTABLE) $(K12OTHERPANGENOME)
 	$(SRCDIR)/get_upstream_sequence $(K12) $(OTHER) $(TFBSTABLE) $(K12OTHERPANGENOME) > $(UPSTREAMS)
 
+# Aligned upstream sequences
+
+ALIGNED = $(DATADIR)/align.fasta
+$(ALIGNED): $(UPSTREAMS)
+	$(SRCDIR)/align_sequences $(UPSTREAMS) > $(ALIGNED)
+
 # Makefile targets
 
 orthologs: $(K12OTHERPANGENOME)
-upstreams: $(UPSTREAMS)
+upstreams: $(ALIGNED)
 all: orthologs upstreams
 
 .PHONY: all orthologs upstreams

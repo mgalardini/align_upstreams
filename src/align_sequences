@@ -1,0 +1,146 @@
+#!/usr/bin/env python
+
+# Copyright (C) <2015> EMBL-European Bioinformatics Institute
+
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# Neither the institution name nor the name align_upstreams can
+# be used to endorse or promote products derived from this
+# software without prior written permission. For written
+# permission, please contact <marco@ebi.ac.uk>.
+
+# Products derived from this software may not be called
+# align_upstreams nor may align_upstreams appear in their names
+# without prior written permission of the developers.
+# You should have received a copy of the GNU General Public
+# License along with this program. If not, see
+# <http://www.gnu.org/licenses/>.
+
+__author__ = "Marco Galardini"
+__version__ = "0.0.1"
+
+def get_options():
+    import argparse
+
+    # create the top-level parser
+    description = "Align upstream sequences using MAFFT and PRANK"
+    parser = argparse.ArgumentParser(description = description,
+                                     prog = 'align_sequences')
+    parser.add_argument('upstreams', action='store',
+                        help='Interleaved upstream sequences Fasta file')
+
+    parser.add_argument('--verbose', action='store_true',
+                        default=False,
+                        help='Increase verbosity')
+    
+    parser.add_argument('--version', action='version',
+                         version='%(prog)s '+__version__)
+    return parser.parse_args()
+
+def run_cmd(cmd, ignore_error=False, verbose=False):
+    '''
+    Run a command line command
+    Returns True or False based on the exit code
+    '''
+    import sys
+    import subprocess
+    import os
+    if verbose:
+        sys.stderr.write('Running %s\n'%cmd)
+    proc = subprocess.Popen(cmd,shell=(sys.platform!="win32"),
+                            stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    out = proc.communicate()
+    return_code = proc.returncode
+    if verbose:
+        sys.stderr.write('%s\n'%str(out[0].decode('utf-8')))
+        sys.stderr.write('\n')
+        sys.stderr.write('%s\n'%str(out[1].decode('utf-8')))
+        sys.stderr.write('\n')
+    if return_code != 0 and not ignore_error:
+        sys.stderr.write('Command (%s) failed w/ error %d\n'
+                        %(cmd, return_code))
+        sys.stderr.write('%s\n'%str(out[1].decode('utf-8')))
+        sys.stderr.write('\n')
+
+    return bool(not return_code)
+
+if __name__ == "__main__":
+    import sys
+    from Bio import SeqIO
+    from Bio import AlignIO
+    options = get_options()
+
+    # Get pairs of sequences from the input file
+    # (we assume that they are interleaved)
+    sequences = SeqIO.parse(options.upstreams, 'fasta')
+    while True:
+        # On failures, the next pair is picked up
+        try:
+            s1 = sequences.next()
+            s2 = sequences.next()
+        except StopIteration:
+            # No more sequences
+            break
+
+        # Write them to a temporary file
+        SeqIO.write((s1, s2), 'input.fa', 'fasta')
+
+        # 1- Align with MAFFT
+        # then remove the 5' and 3' gaps
+        cmd = 'mafft input.fa > mafft.fa'
+        if not run_cmd(cmd, verbose=options.verbose):
+            sys.stderr.write('Could not align %s and %s (MAFFT)\n'%(s1.id,
+                                                          s2.id))
+            continue
+        # Read the alignment
+        align = AlignIO.read('mafft.fa', 'fasta')
+        # How many gaps at 5' and 3'?
+        gaps_indexes = [i for i in range(len(align[0]))
+                        if '-' in align[:, i]]
+        # 5'?
+        trim = []
+        if len(gaps_indexes) != 0 and gaps_indexes[0] == 0:
+            i = 0
+            while True:
+                trim.append(gaps_indexes[i])
+                if gaps_indexes[i+1] != gaps_indexes[i] + 1:
+                    break
+                i += 1
+        # 3'?
+        if len(gaps_indexes) != 0 and gaps_indexes[-1] == len(align[0]) - 1:
+            i = len(s[0]) - 1
+            while True:
+                trim.append(gaps_indexes[i])
+                if gaps_indexes[i-1] != gaps_indexes[i] - 1:
+                    break
+                i -= 1
+        # Remove the 5'/3' gaps
+        # then rewrite the sequences unaligned
+        u1 = ''.join([align[0, i] for i in range(len(align[0]))
+                     if i not in trim and align[0, i] != '-'])
+        u2 = ''.join([align[1, i] for i in range(len(align[0]))
+                     if i not in trim and align[1, i] != '-'])
+        f = open('input.fa', 'w')
+        f.write('>%s\n%s\n>%s\n%s\n'%(s1.id, u1,
+                                      s2.id, u2))
+        f.close()
+
+        cmd = 'prank -d=input.fa -DNA -o=prank'
+        if not run_cmd(cmd, verbose=options.verbose):
+            sys.stderr.write('Could not align %s and %s (PRANK)\n'%(s1.id,
+                                                          s2.id))
+            continue
+        # Read the alignment
+        # Then just print it to stdout
+        for s in SeqIO.parse('prank.best.fas', 'fasta'):
+            print('>%s'%s.id)
+            print('%s'%str(s.seq))
