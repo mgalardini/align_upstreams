@@ -190,13 +190,14 @@ if __name__ == "__main__":
         else:
             gene2_strand = '-'
 
-        print('>%s__%s__%s__%d__%d__%s__%d__%d__%s\n%s'%(
+        print('>%s__%s__%s__%d__%d__%s__%s__%d__%d__%s\n%s'%(
             options.org1,
             sequence_id,
             locus,
             gene_start,
             gene_end,
             gene_strand,
+            regulator,
             tfbs_start,
             tfbs_end,
             tfbs_strand,
