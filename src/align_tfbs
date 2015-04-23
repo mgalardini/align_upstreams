@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+
+# Copyright (C) <2015> EMBL-European Bioinformatics Institute
+
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+# Neither the institution name nor the name align_upstreams can
+# be used to endorse or promote products derived from this
+# software without prior written permission. For written
+# permission, please contact <marco@ebi.ac.uk>.
+
+# Products derived from this software may not be called
+# align_upstreams nor may align_upstreams appear in their names
+# without prior written permission of the developers.
+# You should have received a copy of the GNU General Public
+# License along with this program. If not, see
+# <http://www.gnu.org/licenses/>.
+
+__author__ = "Marco Galardini"
+__version__ = "0.0.1"
+
+def get_options():
+    import argparse
+
+    # create the top-level parser
+    description = "Retrieve the aligned TFBSs"
+    parser = argparse.ArgumentParser(description = description,
+                                     prog = 'align_tfbs')
+    parser.add_argument('aligns', action='store',
+                        help='Interleaved upstream sequences alignements Fasta file')
+
+    parser.add_argument('--verbose', action='store_true',
+                        default=False,
+                        help='Increase verbosity')
+    
+    parser.add_argument('--version', action='version',
+                         version='%(prog)s '+__version__)
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    import sys
+    from Bio import SeqIO
+    options = get_options()
+
+    # Get pairs of sequences from the input file
+    # (we assume that they are interleaved)
+    sequences = SeqIO.parse(options.aligns, 'fasta')
+    while True:
+        # On failures, the next pair is picked up
+        try:
+            s1 = sequences.next()
+            s2 = sequences.next()
+        except StopIteration:
+            # No more sequences
+            break
+
+        # Sanity check
+        if s1.id.split('__')[0] == s2.id.split('__')[0]:
+            sys.stderr.write('Input sequences not interleaved! (%s/%s)\n'%(s1.id,
+                                              s2.id))
+            sys.exit(1)
+
+        # Map the alignment positions to the actual sequence
+        # to take into account gaps
+        d1 = {}
+        a = -1
+        u = -1
+        for c in str(s1.seq):
+            a += 1
+            if c == '-':
+                continue
+            u += 1
+            d1[u] = a
+
+        # Get the position of the TFBS from the first sequence header
+        h1 = s1.id.split('__')
+        # TODO: verify that the positions are correct
+        tfbs_start = int(h1[7]) - int(h1[3])
+        tfbs_end = int(h1[8]) - int(h1[3])
+        tfbs_strand = h1[9]
+        
+        # TODO: update the fasta headers to indicate
+        # the actual sliced sequence
+        
+        # Slice the two alignments and get the actual alignement
+        # Reverse complement if needed
+        if tfbs_strand == '+':
+            t1 = str(s1[d1[tfbs_start]:
+                        d1[tfbs_end]].seq)
+            t2 = str(s2[d1[tfbs_start]:
+                        d1[tfbs_end]].seq)
+        else:
+            t1 = str(s1[d1[tfbs_start]:
+                        d1[tfbs_end]].seq.reverse_complement())
+            t2 = str(s2[d1[tfbs_start]:
+                        d1[tfbs_end]].seq.reverse_complement())
+
+        print('>%s\n%s'%(s1.id, t1))
+        print('>%s\n%s'%(s2.id, t2))
