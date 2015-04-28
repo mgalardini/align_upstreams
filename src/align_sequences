@@ -150,6 +150,8 @@ if __name__ == "__main__":
         if len(trim5) == 0 and len(trim3) == 0:
             s1_id = s1.id
         else:
+            # Here correct the coordinates in the FASTA header
+            # to account for the 5' and 3' bases that have been trimmed
             # TODO: check that this is the proper way
             s1_start = int(s1.id.split('__')[3]) + len(trim5) - 1
             s1_end = int(s1.id.split('__')[4]) - len(trim3) + 1

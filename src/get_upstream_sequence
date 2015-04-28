@@ -69,6 +69,10 @@ if __name__ == "__main__":
     import sys
     options = get_options()
 
+    # Print a warning for my future self
+    sys.stderr.write('Note that all the sequences are taken from the + strand\n')
+    sys.stderr.write('The Strand after the sequence coordinates refers to the gene\n')
+
     # Read the 1:1 orthologs
     orth = {}
     for l in open(options.orthologs):
@@ -141,17 +145,21 @@ if __name__ == "__main__":
             # Add "downstream" bases before the TFBS
             # and take the same distance from organism2
             if gene_strand == '+':
-                seq1 = str(s1[gene_start-dist-options.upstream:
-                              gene_start+options.downstream].seq)
+                seq_start = gene_start-dist-options.upstream
+                seq_end = gene_start+options.downstream
             else:
-                seq1 = str(s1[gene_end-options.downstream:
-                      gene_end+dist+options.upstream].reverse_complement().seq)
+                seq_start = gene_end-options.downstream
+                seq_end = gene_end+dist+options.upstream
+            seq1 = str(s1[seq_start:
+                          seq_end].seq)
             if gene2_strand > 0:
-                seq2 = str(s2[gene2_start-dist-options.upstream:
-                              gene2_start+options.downstream].seq)
+                seq2_start = gene2_start-dist-options.upstream
+                seq2_end = gene2_start+options.downstream
             else:
-                seq2 = str(s2[gene2_end-options.downstream:
-                    gene2_end+dist+options.upstream].reverse_complement().seq)
+                seq2_start = gene2_end-options.downstream
+                seq2_end = gene2_end+dist+options.upstream
+            seq2 = str(s2[seq2_start:
+                          seq2_end].seq)
         # Exception #2: TFBS is on the other side of the gene
         elif dist < 0 and -dist > options.downstream:
             # Take "downstream" bases upstream of the gene
@@ -159,31 +167,39 @@ if __name__ == "__main__":
             # then take the same distance for organism2
             dist = -dist
             if gene_strand == '+':
-                seq1 = str(s1[gene_start-options.downstream:
-                              gene_start+dist+options.downstream].seq)
+                seq_start = gene_start-options.downstream
+                seq_end = gene_start+dist+options.downstream
             else:
-                seq1 = str(s1[gene_end-dist-options.downstream:
-                    gene_end+options.downstream].reverse_complement().seq)
+                seq_start = gene_end-dist-options.downstream
+                seq_end = gene_end+options.downstream
+            seq1 = str(s1[seq_start:
+                          seq_end].seq)
             if gene2_strand > 0:
-                seq2 = str(s2[gene2_start-options.downstream:
-                              gene2_start+dist+options.downstream].seq)
+                seq2_start = gene2_start-options.downstream
+                seq2_end = gene2_start+dist+options.downstream
             else:
-                seq2 = str(s2[gene2_end-dist-options.downstream:
-                    gene2_end+options.downstream].reverse_complement().seq)
+                seq2_start = gene2_end-dist-options.downstream
+                seq2_end = gene2_end+options.downstream
+            seq2 = str(s2[seq2_start:
+                          seq2_end].seq)
         else:
             # Just take upstream + downstream sequences from organism2
             if gene_strand == '+':
-                seq1 = str(s1[gene_start-options.upstream:
-                              gene_start+options.downstream].seq)
+                seq_start = gene_start-options.upstream
+                seq_end = gene_start+options.downstream
             else:
-                seq1 = str(s1[gene_end-options.downstream:
-                    gene_end+options.upstream].reverse_complement().seq)
+                seq_start = gene_end-options.downstream
+                seq_end = gene_end+options.upstream
+            seq1 = str(s1[seq_start:
+                          seq_end].reverse_complement().seq)
             if gene2_strand > 0:
-                seq2 = str(s2[gene2_start-options.upstream:
-                              gene2_start+options.downstream].seq)
+                seq2_start = gene2_start-options.upstream
+                seq2_end = gene2_start+options.downstream
             else:
-                seq2 = str(s2[gene2_end-options.downstream:
-                    gene2_end+options.upstream].reverse_complement().seq)
+                seq2_start = gene2_end-options.downstream
+                seq2_end = gene2_end+options.upstream
+            seq2 = str(s2[seq2_start:
+                          seq2_end].seq)
 
         if gene2_strand > 0:
             gene2_strand = '+'
@@ -194,8 +210,8 @@ if __name__ == "__main__":
             options.org1,
             sequence_id,
             locus,
-            gene_start,
-            gene_end,
+            seq_start,
+            seq_end,
             gene_strand,
             regulator,
             tfbs_start,
@@ -206,7 +222,7 @@ if __name__ == "__main__":
             options.org2,
             ls2[locus2],
             locus2,
-            gene2_start,
-            gene2_end,
+            seq2_start,
+            seq2_end,
             gene2_strand,
             seq2))
