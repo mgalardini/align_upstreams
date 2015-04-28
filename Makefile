@@ -3,7 +3,7 @@ DATADIR = $(CURDIR)/data
 GENOMESDIR = $(CURDIR)/genomes
 OMADIR = $(CURDIR)/oma
 OMAPARAMETERS = $(OMADIR)/parameters.drw
-OMACPU = 6
+OMACPU = 10
 K12 = $(GENOMESDIR)/k12.gbk
 OTHER = $(GENOMESDIR)/other.gbk
 
